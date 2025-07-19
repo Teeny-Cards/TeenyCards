@@ -53,5 +53,5 @@ const numCardsDue = computed(() => {
     </div>
   </div>
 
-  <StudyModal :open="study_modal_open" @closed="study_modal_open = false" :deck="deck" />
+  <!-- <StudyModal :open="study_modal_open" @closed="study_modal_open = false" :deck="deck" /> -->
 </template>

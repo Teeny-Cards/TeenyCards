@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import OverviewPanel from '@/components/deck-view/overview-panel.vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, inject } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { fetchDeckById } from '@/services/deck-service'
 import StudyModal from '@/components/study-modal/index.vue'
 import CardList from '@/components/deck-view/card-list/index.vue'
 import { useI18n } from 'vue-i18n'
 import { useEditableCards } from '@/composables/use-editable-cards'
 import { updateCards, deleteCardsById } from '@/services/card-service'
+import { useModal } from '@/composables/use-modal'
 import confirmationAlert from '@/components/confirmation-alert.vue'
 
 const { t } = useI18n()
@@ -15,11 +17,11 @@ const { id: deck_id } = defineProps<{
   id: string
 }>()
 
+const { openModal } = useModal()
+
 const deck = ref<Deck>()
 const studyModalOpen = ref(false)
 const editing = ref(false)
-const deleteCardConfirmationOpen = ref(false)
-const cardsToDelete = ref<number[]>([])
 let cardEdits: ReturnType<typeof useEditableCards> | undefined
 
 const tabs = [
@@ -40,6 +42,27 @@ onMounted(async () => {
     cardEdits = useEditableCards(deck.value.cards ?? [], deck.value.id)
   } catch (e: any) {
     // TODO
+  }
+})
+
+onBeforeRouteLeave(async (to, from) => {
+  if (editing.value) {
+    const modal = openModal({
+      component: confirmationAlert,
+      backdrop: true,
+      props: {
+        title: t('alert.leave-page'),
+        message: t('alert.leave-page.message'),
+        confirmLabel: t('alert.leave-page.stay'),
+        cancelLabel: t('common.leave')
+      }
+    })
+
+    const result = await modal.result
+
+    if (result) {
+      return false
+    }
   }
 })
 
@@ -76,22 +99,24 @@ function selectCard(id: number) {
   // cardEdits?.selectCard(id)
 }
 
-function deleteCards(ids: number[]) {
-  cardsToDelete.value = ids
-  deleteCardConfirmationOpen.value = true
-}
+async function deleteCards(ids: number[]) {
+  if (!ids.length) return
 
-async function confirmDeleteCards() {
-  await deleteCardsById(cardsToDelete.value)
-  await refetchCards()
+  const modal = openModal({
+    component: confirmationAlert,
+    props: {
+      title: t('alert.delete-card'),
+      message: t('alert.delete-card.message'),
+      confirmLabel: t('common.delete')
+    }
+  })
 
-  cardsToDelete.value = []
-  deleteCardConfirmationOpen.value = false
-}
+  const result = await modal.result
 
-function cancelDeleteCards() {
-  cardsToDelete.value = []
-  deleteCardConfirmationOpen.value = false
+  if (result) {
+    await deleteCardsById(ids)
+    await refetchCards()
+  }
 }
 
 function onAddCard() {
@@ -136,12 +161,5 @@ function onAddCard() {
     </div>
   </section>
 
-  <study-modal v-if="deck" :open="studyModalOpen" :deck="deck" @closed="studyModalOpen = false" />
-
-  <confirmation-alert
-    :open="deleteCardConfirmationOpen"
-    :confirm-label="t('common.delete')"
-    @confirm="confirmDeleteCards"
-    @cancel="cancelDeleteCards"
-  />
+  <!-- <study-modal v-if="deck" :open="studyModalOpen" :deck="deck" @closed="studyModalOpen = false" /> -->
 </template>

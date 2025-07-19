@@ -4,16 +4,18 @@ import { fetchMemberDecks } from '@/services/deck-service'
 import { useToastStore } from '@/stores/toast'
 import Deck from '@/components/deck.vue'
 import { useRouter } from 'vue-router'
-import { createDeck } from '@/services/deck-service'
+import { createDeck as upstreamCreateDeck } from '@/services/deck-service'
+import CreateDeckModal from '@/components/modals/create-deck.vue'
+import { useModal } from '@/composables/use-modal'
 
 const toastStore = useToastStore()
 const router = useRouter()
 
-const create_deck_modal_open = ref(false)
+const { openModal } = useModal()
+
 const loading = ref(true)
 const decks = ref<Deck[]>([])
-const title = ref('')
-const description = ref('')
+const create_deck_modal = ref()
 
 onMounted(async () => {
   await refetchDecks()
@@ -36,16 +38,20 @@ function onDeckClicked(deck: Deck) {
   router.push({ name: 'deck', params: { id: deck.id } })
 }
 
-async function onCreateDeck() {
-  await createDeck({
-    title: title.value,
-    description: description.value
+function onCreateDeckClicked() {
+  create_deck_modal.value = openModal({
+    component: CreateDeckModal,
+    backdrop: true,
+    props: {
+      onCreated: createDeck
+    }
   })
-  await refetchDecks()
+}
 
-  create_deck_modal_open.value = false
-  title.value = ''
-  description.value = ''
+async function createDeck(deck: Deck) {
+  await upstreamCreateDeck(deck)
+  await refetchDecks()
+  create_deck_modal.value.close()
 }
 </script>
 
@@ -73,31 +79,7 @@ async function onCreateDeck() {
           @clicked="() => onDeckClicked(deck)"
         />
       </div>
-      <ui-kit:button icon-left="add" @click="create_deck_modal_open = true"
-        >Create Deck</ui-kit:button
-      >
+      <ui-kit:button icon-left="add" @click="onCreateDeckClicked">Create Deck</ui-kit:button>
     </div>
   </div>
-
-  <ui-kit:modal :open="create_deck_modal_open" @closed="create_deck_modal_open = false">
-    <div
-      class="bg-brown-300 rounded-11 shadow-modal flex w-full flex-col items-center justify-center
-        overflow-hidden pb-6 lg:max-w-max"
-    >
-      <div
-        data-testid="edit-card-modal__title"
-        class="wave-bottom flex w-full justify-center bg-purple-500 pt-12 pb-16 text-white"
-      >
-        <h1 class="font-primary text-5xl font-semibold">Create Deck</h1>
-      </div>
-      <div
-        data-testid="edit-card-modal__body"
-        class="flex w-full flex-col items-center gap-2 px-16"
-      >
-        <ui-kit:input type="text" placeholder="Title" v-model="title" />
-        <ui-kit:input type="text" placeholder="Description" v-model="description" />
-        <ui-kit:button icon-left="add" @click="onCreateDeck">Create</ui-kit:button>
-      </div>
-    </div>
-  </ui-kit:modal>
 </template>

@@ -34,9 +34,9 @@
     </div>
   </nav>
 
-  <ui-kit:modal :open="member_card_open" backdrop @closed="member_card_open = false">
+  <!-- <ui-kit:modal :open="member_card_open" backdrop @closed="member_card_open = false">
     <MemberCard />
-  </ui-kit:modal>
+  </ui-kit:modal> -->
 </template>
 
 <script setup lang="ts">
