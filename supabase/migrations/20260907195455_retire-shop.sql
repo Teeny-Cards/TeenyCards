@@ -1,4 +1,5 @@
--- knowledge: shop_items, purchases, shop_category, add_or_update_purchase — unrecorded
+-- knowledge: shop_items, shop_category, add_or_update_purchase, user_id — unrecorded
+-- knowledge: purchases — .claude/rules/server-state.md
 -- Retires the shop. `plans` (also formerly in 80_shop.sql) survives — members.plan
 -- FKs to it — and moved to 80_plans.sql with identical DDL, so it does not diff here.
 
