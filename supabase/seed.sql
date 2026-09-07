@@ -42,18 +42,18 @@ update public.members set role = 'admin' where id = '00000000-0000-0000-0000-000
 update public.plans set stripe_price_id = 'price_1Tqwq7IuBoRqjURoOfra7y5M' where id = 'paid';
 
 -- -----------------------------------------------------------------------------
--- Rewards catalogue. Measures are the countable things a source reports under;
--- milestones are retunable data (measure + threshold + paperclip payload). The
+-- Rewards catalogue. Metrics are the countable things a source reports under;
+-- milestones are retunable data (metric + threshold + paperclip payload). The
 -- name is an i18n key placeholder, never English copy. Inserted as postgres —
 -- both tables are catalogue-only (SELECT for authenticated, no client writes).
 -- -----------------------------------------------------------------------------
-insert into public.reward_measures (key) values
+insert into public.reward_metrics (key) values
   ('study.cards_reviewed'),
   ('study.correct_answers'),
   ('study.sessions_completed')
 on conflict (key) do nothing;
 
-insert into public.milestones (measure, threshold, rewards, name_key) values
+insert into public.reward_milestones (metric, threshold, rewards, name_key) values
   ('study.cards_reviewed',    100,  '[{"kind":"paperclips","amount":50}]'::jsonb,   'rewards.milestone.cards-reviewed-100'),
   ('study.cards_reviewed',    500,  '[{"kind":"paperclips","amount":150}]'::jsonb,  'rewards.milestone.cards-reviewed-500'),
   ('study.cards_reviewed',    1000, '[{"kind":"paperclips","amount":300}]'::jsonb,  'rewards.milestone.cards-reviewed-1000'),
@@ -64,7 +64,7 @@ insert into public.milestones (measure, threshold, rewards, name_key) values
   ('study.sessions_completed', 5,   '[{"kind":"paperclips","amount":30}]'::jsonb,   'rewards.milestone.sessions-completed-5'),
   ('study.sessions_completed', 25,  '[{"kind":"paperclips","amount":100}]'::jsonb,  'rewards.milestone.sessions-completed-25'),
   ('study.sessions_completed', 100, '[{"kind":"paperclips","amount":400}]'::jsonb,  'rewards.milestone.sessions-completed-100')
-on conflict (measure, threshold) do nothing;
+on conflict (metric, threshold) do nothing;
 
 -- -----------------------------------------------------------------------------
 -- 2. Impersonate Cheesy so member_id / rank triggers and RLS policies behave

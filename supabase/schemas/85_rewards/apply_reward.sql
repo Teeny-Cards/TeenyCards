@@ -3,7 +3,7 @@
 -- produce the migration.
 SET check_function_bodies = false;
 
-CREATE FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_milestone bigint) RETURNS void
+CREATE FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_reward bigint) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
 DECLARE
@@ -22,8 +22,8 @@ BEGIN
     IF v_kind = 'paperclips' THEN
       -- The ledger is the only place a balance lives; this insert is the sole
       -- writer. The resolved amount is what gets stored, never the spec.
-      INSERT INTO public.paperclip_ledger (member_id, amount, member_milestone_id)
-      VALUES (p_member, (v_reward ->> 'amount')::bigint, p_member_milestone);
+      INSERT INTO public.paperclip_ledger (member_id, amount, member_reward_id)
+      VALUES (p_member, (v_reward ->> 'amount')::bigint, p_member_reward);
     ELSE
       RAISE EXCEPTION 'Unknown reward kind: %', v_kind;
     END IF;
@@ -32,12 +32,12 @@ END;
 $$;
 
 
-ALTER FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_milestone bigint) OWNER TO postgres;
+ALTER FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_reward bigint) OWNER TO postgres;
 
 
 -- Internal seam, never client-callable: db diff emits no grants, so a new
 -- definer function lands EXECUTE-able by PUBLIC unless revoked by hand.
-REVOKE ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_milestone bigint) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_milestone bigint) FROM anon;
-REVOKE ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_milestone bigint) FROM authenticated;
-GRANT ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_milestone bigint) TO service_role;
+REVOKE ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_reward bigint) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_reward bigint) FROM anon;
+REVOKE ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_reward bigint) FROM authenticated;
+GRANT ALL ON FUNCTION public.apply_reward(p_member uuid, p_rewards jsonb, p_member_reward bigint) TO service_role;
