@@ -49,6 +49,20 @@ Gate role/plan-based access through named capability functions, not inline `auth
 - Every capability function needs `grant execute on function public.can_x() to authenticated` — required for edge functions to reach it via `rpc()`.
 - RLS policies: `using (can_x())`. Edge functions: `requireCapability(req, 'can_x')` from `supabase/functions/_shared/require-capability.ts`.
 
+## Table naming matches the existing convention
+
+A new domain doesn't invent its own naming scheme; it follows the one already in the schema. Mirrors
+the capability-function rule above: name for what the row is, not for the scheme a new domain feels
+like starting.
+
+- Name a new table bare-plural for a global entity (`cards`, `decks`), or `<domain>_<thing>` for a
+  feature-scoped catalogue or definition (`feedback_items`, `shop_items`) — never a new prefix scheme
+  invented for one domain.
+- Reserve a `member_` prefix for a table that is genuinely per-member; carry per-member scoping on
+  every other table through an FK instead of the name.
+- Keep a table name to two words or fewer, and never a noun vague enough to leave what it holds
+  unclear (`progress`, `state`).
+
 ## Declarative schemas — the default workflow
 
 `supabase/schemas/` is the source of truth for all DDL (tables, views, functions, triggers, policies, grants). **Never hand-write DDL migrations.** To change schema:
