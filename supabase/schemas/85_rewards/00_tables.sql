@@ -17,7 +17,7 @@ ALTER TABLE public.reward_measures OWNER TO postgres;
 
 -- Lifetime tally per (member, measure), stored as a counter that only ever goes
 -- up via record_progress — never re-derived from source rows, so a deck reset
--- that deletes reviews cannot unwind milestones already crossed.
+-- that deletes reviews cannot unwind milestones already crossed →[K:reward-tally-survives-reset].
 CREATE TABLE public.member_progress (
     member_id uuid NOT NULL,
     measure text NOT NULL,

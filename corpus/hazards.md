@@ -24,6 +24,8 @@ in the directory it bites, so it reaches you when you're standing on it.
 | →[K:permission-widening-ripples]                | [[permissions]]        | `supabase/schemas/` (the `can_` functions)                                                                               |
 | →[K:media-lifetime-follows-notes]               | [[media]]              | `src/api/media/`                                                                                                         |
 | →[K:client-owns-the-schedule]                   | [[scheduling]]         | `src/views/study-session/`                                                                                               |
+| →[K:reward-tally-survives-reset]                | [[rewards]]            | `supabase/schemas/85_rewards/`                                                                                           |
+| →[K:reward-payout-is-resolved-not-spec]         | [[rewards]]            | `supabase/schemas/85_rewards/`                                                                                           |
 | →[K:silent-stale-cache]                         | [[data-flow]]          | `src/api/reviews/mutations/`                                                                                             |
 | →[K:postgrest-max-rows-truncates-silently]      | [[data-flow]]          | `src/api/**`                                                                                                             |
 | →[K:query-status-holds-through-repeat-failure]  | [[data-flow]]          | `src/components/feedback/feedback-board.vue`                                                                             |

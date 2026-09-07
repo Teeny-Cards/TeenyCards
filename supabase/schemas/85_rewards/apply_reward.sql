@@ -12,7 +12,9 @@ DECLARE
 BEGIN
   -- Walk the reward list and dispatch on kind. Each branch resolves its payload
   -- entry as a spec and persists the concrete outcome, so a future randomized
-  -- reward computes its value here without any change upstream in record_progress.
+  -- reward computes its value here without any change upstream in record_progress
+  -- — and editing a milestone's reward payload later never touches what an
+  -- already-earned member was actually paid →[K:reward-payout-is-resolved-not-spec].
   FOR v_reward IN SELECT * FROM jsonb_array_elements(p_rewards)
   LOOP
     v_kind := v_reward ->> 'kind';
