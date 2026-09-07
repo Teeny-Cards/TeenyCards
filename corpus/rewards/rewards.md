@@ -12,8 +12,8 @@ updated: 2026-09-07
 The system that notices when you've done enough of something, and pays you for it.
 
 A member does something countable — reviews a card, say. That count adds up
-against a **measure** (a named countable thing, like `study.cards_reviewed`).
-Cross a **milestone**'s threshold on that measure for the first time, and you
+against a **metric** (a named countable thing, like `study.cards_reviewed`).
+Cross a **milestone**'s threshold on that metric for the first time, and you
 earn it: a record is stamped, and whatever the milestone promises gets paid out
 — today that's paperclips, a currency tracked as its own ledger.
 
@@ -48,7 +48,7 @@ tallies the count, checks whether the new tally crossed any milestone it
 hadn't already earned, stamps the earned record, and pays out — all in one
 atomic transaction. There's no in-between state where a member's tally has
 moved past a threshold but the reward hasn't landed yet, and no way for two
-concurrent reports on the same measure to pay the same milestone twice.
+concurrent reports on the same metric to pay the same milestone twice.
 
 ## The server is the only source of truth
 
