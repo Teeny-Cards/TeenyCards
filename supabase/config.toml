@@ -58,6 +58,7 @@ schema_paths = [
   "./schemas/60_reviews/*.sql",
   "./schemas/70_lessons.sql",
   "./schemas/80_plans.sql",
+  "./schemas/85_rewards/*.sql",
   "./schemas/90_feedback.sql",
   "./schemas/99_auth_storage.sql"
 ]
