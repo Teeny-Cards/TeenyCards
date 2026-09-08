@@ -49,6 +49,20 @@ Gate role/plan-based access through named capability functions, not inline `auth
 - Every capability function needs `grant execute on function public.can_x() to authenticated` — required for edge functions to reach it via `rpc()`.
 - RLS policies: `using (can_x())`. Edge functions: `requireCapability(req, 'can_x')` from `supabase/functions/_shared/require-capability.ts`.
 
+## Table naming matches the existing convention
+
+A new domain doesn't invent its own naming scheme; it follows the one already in the schema. Mirrors
+the capability-function rule above: name for what the row is, not for the scheme a new domain feels
+like starting.
+
+- Name a new table bare-plural for a global entity (`cards`, `decks`), or `<domain>_<thing>` for a
+  feature-scoped catalogue or definition (`feedback_items`, `shop_items`) — never a new prefix scheme
+  invented for one domain.
+- Reserve a `member_` prefix for a table that is genuinely per-member; carry per-member scoping on
+  every other table through an FK instead of the name.
+- Keep a table name to two words or fewer, and never a noun vague enough to leave what it holds
+  unclear (`progress`, `state`).
+
 ## Declarative schemas — the default workflow
 
 `supabase/schemas/` is the source of truth for all DDL (tables, views, functions, triggers, policies, grants). **Never hand-write DDL migrations.** To change schema:
@@ -79,6 +93,11 @@ Also untracked, so still hand-written: DML (storage bucket inserts, `cron.schedu
   quoting a value. Never assert a DB value (a plan limit, a default, a seeded row) from the first
   matching migration.
 - `supabase migration up --local` immediately after writing — catches errors while the context is fresh. Never `supabase db reset`.
+- **Rows added to `seed.sql` don't reach the running local DB on their own** — its DML only loads on
+  `db reset`, banned above, and `migration up` never touches it. After authoring new seed rows, apply
+  the same statements directly against local Postgres (port 54322) — e.g.
+  `psql "postgresql://postgres:postgres@localhost:54322/postgres" -f <file>` — so the running dev
+  data doesn't silently diverge from `seed.sql`.
 - **Editing a migration is fair game until it ships.** If it hasn't been deployed and hasn't merged to `master`, rewrite it in place — all-local work is free game. Once it's on `master` or deployed anywhere, it's immutable: write a new timestamped migration instead. Check with `supabase migration list --local` and `git log master -- <file>`.
 - To rewrite an applied branch-local migration before PR: `supabase migration repair --status reverted --local <version>` → edit → `migration up --include-all`. Don't do this for anything already shipped.
 
