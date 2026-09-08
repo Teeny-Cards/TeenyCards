@@ -1,5 +1,5 @@
 ---
-lastUpdated: 2026-04-25T19:03:21Z
+lastUpdated: 2026-09-08T00:00:00Z
 paths:
   - 'src/**/*.{ts,vue}'
 ---
@@ -39,6 +39,11 @@ All animation functions should be in `src/utils/animations/` and named after the
 Wire Vue `<Transition>` with `:css="false"` and JS hooks (`@enter`, `@leave`) that delegate to the helpers above. **Never write `*-enter-active` / `*-leave-to` class rules in a `<style>` block**, even though Vue supports it — mixing CSS-class transitions with GSAP gives inconsistent feel and hides the timing.
 
 Prefer a **simultaneous** swap (entering and leaving panes overlapping) over `out-in`, which reads as a sequential two-step. When a transition needs reworking, adapt the existing util rather than deleting it.
+
+Size a simultaneous swap's container to the entering pane's own content, not a fixed/`min-height`
+wrapper — stack the two panes on the same `grid-area` inside a `display: grid` container instead of
+absolutely positioning either one; a `min-height` wrapper with an absolutely-positioned pane inside
+it clips content taller than the guessed minimum.
 
 ## Sequencing dependent work
 
