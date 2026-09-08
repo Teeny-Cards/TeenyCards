@@ -382,6 +382,7 @@ onBeforeUnmount(() => {
             <div
               v-if="use_fixed_layout"
               data-testid="lesson-view__translation-band"
+              data-station="float"
               class="w-full overflow-hidden rounded-6 bg-surface shadow-sm ring-1 ring-line"
             >
               <translation-zone :translation="pinned_translation" />
