@@ -765,6 +765,9 @@ describe('LessonView', () => {
         wrapper.findComponent({ name: 'TranscriptView' }).props('hide_inline_translation')
       ).toBe(true)
       expect(wrapper.findComponent({ name: 'TranslationZone' }).exists()).toBe(true)
+      expect(
+        wrapper.find('[data-testid="lesson-view__translation-band"]').attributes('data-station')
+      ).toBe('float')
     })
 
     test('desktop ignores a fixed display_mode — inline translation stays, no pinned band', () => {

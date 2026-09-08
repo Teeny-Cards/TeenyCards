@@ -2,14 +2,19 @@ import { describe, test, expect, beforeEach, vi } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
-const { mockEnter, mockLeave } = vi.hoisted(() => ({
+const { mockEnter, mockLeave, useAnimatedHeightMock } = vi.hoisted(() => ({
   mockEnter: vi.fn((_el, done) => done()),
-  mockLeave: vi.fn((_el, done) => done())
+  mockLeave: vi.fn((_el, done) => done()),
+  useAnimatedHeightMock: vi.fn()
 }))
 
 vi.mock('@/utils/animations/translation-crossfade', () => ({
   translationCrossfadeEnter: mockEnter,
   translationCrossfadeLeave: mockLeave
+}))
+
+vi.mock('@/composables/ui/animated-height', () => ({
+  useAnimatedHeight: useAnimatedHeightMock
 }))
 
 import TranslationZone from '@/views/audio-reader/lesson/translation-zone.vue'
@@ -18,6 +23,7 @@ describe('TranslationZone', () => {
   beforeEach(() => {
     mockEnter.mockClear()
     mockLeave.mockClear()
+    useAnimatedHeightMock.mockClear()
   })
 
   describe('empty on null', () => {
@@ -76,6 +82,19 @@ describe('TranslationZone', () => {
       await wrapper.setProps({ translation: 'Bonjour.' })
 
       expect(mockEnter).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('height tween wiring', () => {
+    test('ties the band height to the wrapper and body elements, animated', () => {
+      const wrapper = mount(TranslationZone, { props: { translation: 'Bonjour.' } })
+
+      expect(useAnimatedHeightMock).toHaveBeenCalledTimes(1)
+      const [wrapperRef, contentRef, , , animate] = useAnimatedHeightMock.mock.calls[0]
+
+      expect(wrapperRef.value).toBe(wrapper.find('[data-testid="translation-zone"]').element)
+      expect(contentRef.value).toBe(wrapper.find('[data-testid="translation-zone__body"]').element)
+      expect(animate).toBe(true)
     })
   })
 })
