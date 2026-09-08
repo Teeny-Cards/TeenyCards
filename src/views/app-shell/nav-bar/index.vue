@@ -17,16 +17,16 @@ onMounted(() => {
   <nav
     data-testid="nav-bar-container"
     ref="nav-bar"
-    class="w-full sticky top-0 z-50 transform-[translateZ(0)] pt-4 pb-8 bg-(--color-accent) wave-bottom-[30px] flex justify-center"
+    class="w-full sticky top-0 z-50 transform-[translateZ(0)] pt-2 pb-8 sm:pt-4 bg-(--color-accent) wave-bottom-[30px] flex justify-center"
   >
     <div
       data-testid="nav-bar"
-      class="flex w-full max-w-(--page-width) items-center max-sm:justify-center gap-4 sm:px-(--page-px) relative"
+      class="flex w-full max-w-(--page-width) items-center gap-4 px-4 sm:px-(--page-px) relative"
     >
-      <back-button class="absolute! left-4" />
+      <back-button class="sm:absolute! sm:left-4" />
       <div
         data-testid="nav-bar__logo-lockup"
-        class="flex items-center gap-1 min-h-9 text-3xl sm:text-4xl text-(--color-on-accent)"
+        class="hidden sm:flex items-center gap-1 min-h-9 text-3xl sm:text-4xl text-(--color-on-accent)"
       >
         <ui-icon src="logo" class="h-8 sm:h-9" />
         <div>{{ t('app.title') }}</div>

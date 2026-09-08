@@ -140,7 +140,7 @@ function onClick(e: MouseEvent) {
   >
     <div class="btn-content" data-testid="ui-kit-button__content">
       <ui-icon v-if="iconLeft" class="btn-icon btn-icon--left" :src="iconLeft" />
-      <div v-if="!iconOnly" class="btn-label">
+      <div v-if="!iconOnly" class="btn-label" data-testid="ui-kit-button__label">
         <slot></slot>
       </div>
       <ui-icon v-if="iconRight" class="btn-icon btn-icon--right" :src="iconRight" />
