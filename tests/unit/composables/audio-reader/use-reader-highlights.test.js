@@ -102,12 +102,7 @@ function stubElementFromPoint(returnFn) {
  * component instance, so words appended to contentEl are reachable via the
  * internal `content.value?.querySelector(...)` calls inside the composable.
  */
-function withHighlights({
-  active_word = ref(-1),
-  popover_open = ref(false),
-  matchRangeAt,
-  is_playing = ref(false)
-} = {}) {
+function withHighlights({ active_word = ref(-1), popover_open = ref(false), matchRangeAt } = {}) {
   const { h: vueH, defineComponent } = require('vue')
   let result
 
@@ -134,8 +129,7 @@ function withHighlights({
         onDismiss,
         matchRangeAt,
         virtualizer,
-        rowIndexOfWord,
-        () => is_playing.value
+        rowIndexOfWord
       )
       return () =>
         vueH('div', {}, [
@@ -1317,10 +1311,9 @@ describe('useReaderHighlights', () => {
       expect(result.following.value).toBe(true)
     })
 
-    test('resumeFollow calls scrollLineIntoView with animate=true when playing', async () => {
+    test('resumeFollow calls scrollLineIntoView with animate=true', async () => {
       const active_word = ref(0)
-      const is_playing = ref(true)
-      const { result, contentEl } = withHighlights({ active_word, is_playing })
+      const { result, contentEl } = withHighlights({ active_word })
       addWord(contentEl, 0)
 
       // Disable follow first.
@@ -1330,130 +1323,41 @@ describe('useReaderHighlights', () => {
       await result.resumeFollow()
 
       expect(mockScrollLineIntoView).toHaveBeenCalledTimes(1)
-      // Second arg: animate (true while playing).
-      const [, animate] = mockScrollLineIntoView.mock.calls[0]
-      expect(animate).toBe(true)
-    })
-
-    test('resumeFollow still animates smoothly when paused', async () => {
-      const active_word = ref(0)
-      const is_playing = ref(false)
-      const { result, contentEl } = withHighlights({ active_word, is_playing })
-      addWord(contentEl, 0)
-
-      result.following.value = false
-      mockScrollLineIntoView.mockClear()
-
-      await result.resumeFollow()
-
-      expect(mockScrollLineIntoView).toHaveBeenCalledTimes(1)
-      // The resume tap always smooth-scrolls, regardless of play state.
       const [, animate] = mockScrollLineIntoView.mock.calls[0]
       expect(animate).toBe(true)
     })
   })
 
-  describe('disableFollow — idle auto-resume timer', () => {
+  describe('disableFollow — no auto re-arm', () => {
     beforeEach(() => vi.useFakeTimers())
     afterEach(() => vi.useRealTimers())
 
-    test('re-arms following after FOLLOW_RESUME_IDLE_MS while playing, with no manual resume tap', async () => {
-      const is_playing = ref(true)
-      const { result } = withHighlights({ is_playing })
+    test('following stays off well past the old idle window, with no manual resume tap', async () => {
+      const { result } = withHighlights()
       expect(result.following.value).toBe(true)
 
       window.dispatchEvent(new Event('wheel'))
       await nextTick()
       expect(result.following.value).toBe(false)
 
-      vi.advanceTimersByTime(5000)
-      await nextTick()
-
-      expect(result.following.value).toBe(true)
-    })
-
-    // Paused, the active word isn't advancing — there's nothing to
-    // fall behind, so the idle timer must not yank the view back (e.g. away from
-    // a term popover the member scrolled to read).
-    test('does NOT re-arm following after the idle window while paused', async () => {
-      const is_playing = ref(false)
-      const { result } = withHighlights({ is_playing })
-
-      window.dispatchEvent(new Event('wheel'))
-      await nextTick()
-      expect(result.following.value).toBe(false)
-
-      vi.advanceTimersByTime(5000)
+      vi.advanceTimersByTime(60_000)
       await nextTick()
 
       expect(result.following.value).toBe(false)
     })
 
-    // A paused lapse leaves no timer pending; play starting later
-    // must re-arm one rather than leaving follow off forever.
-    test('re-arms once play starts after an idle window lapsed while paused', async () => {
-      const is_playing = ref(false)
-      const { result } = withHighlights({ is_playing })
+    test('only a resumeFollow call turns following back on', async () => {
+      const { result } = withHighlights()
 
       window.dispatchEvent(new Event('wheel'))
       await nextTick()
-      vi.advanceTimersByTime(5000)
-      await nextTick()
-      expect(result.following.value).toBe(false)
-
-      is_playing.value = true
-      await nextTick()
-      vi.advanceTimersByTime(5000)
-      await nextTick()
-
-      expect(result.following.value).toBe(true)
-    })
-
-    test('a second disableFollow call before the timer fires restarts the idle window', async () => {
-      const is_playing = ref(true)
-      const { result } = withHighlights({ is_playing })
-
-      window.dispatchEvent(new Event('wheel'))
-      await nextTick()
-      expect(result.following.value).toBe(false)
-
-      // Most of the window elapses, then the member scrolls again — this must
-      // restart the countdown rather than let the original timer fire.
-      vi.advanceTimersByTime(4000)
-      window.dispatchEvent(new Event('wheel'))
-      await nextTick()
-
-      // Advancing to the original 5000ms mark (1000ms more) must NOT fire yet —
-      // the restarted timer needs its own full 5000ms from the second call.
-      vi.advanceTimersByTime(1000)
-      await nextTick()
-      expect(result.following.value).toBe(false)
-
-      // The restarted timer completes 4000ms later (5000ms after the second call).
-      vi.advanceTimersByTime(4000)
-      await nextTick()
-      expect(result.following.value).toBe(true)
-    })
-
-    test('calling resumeFollow manually cancels the pending auto re-arm', async () => {
-      const is_playing = ref(true)
-      const { result } = withHighlights({ is_playing })
-
-      window.dispatchEvent(new Event('wheel'))
+      vi.advanceTimersByTime(60_000)
       await nextTick()
       expect(result.following.value).toBe(false)
 
       result.resumeFollow()
+
       expect(result.following.value).toBe(true)
-
-      // Force following back off directly (bypassing disableFollow) so that if
-      // the cancelled timer still fired, it would flip it back on and reveal
-      // the bug. Advancing past the original window must cause no change.
-      result.following.value = false
-      vi.advanceTimersByTime(5000)
-      await nextTick()
-
-      expect(result.following.value).toBe(false)
     })
   })
 
