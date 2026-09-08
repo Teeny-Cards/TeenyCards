@@ -93,6 +93,11 @@ Also untracked, so still hand-written: DML (storage bucket inserts, `cron.schedu
   quoting a value. Never assert a DB value (a plan limit, a default, a seeded row) from the first
   matching migration.
 - `supabase migration up --local` immediately after writing — catches errors while the context is fresh. Never `supabase db reset`.
+- **Rows added to `seed.sql` don't reach the running local DB on their own** — its DML only loads on
+  `db reset`, banned above, and `migration up` never touches it. After authoring new seed rows, apply
+  the same statements directly against local Postgres (port 54322) — e.g.
+  `psql "postgresql://postgres:postgres@localhost:54322/postgres" -f <file>` — so the running dev
+  data doesn't silently diverge from `seed.sql`.
 - **Editing a migration is fair game until it ships.** If it hasn't been deployed and hasn't merged to `master`, rewrite it in place — all-local work is free game. Once it's on `master` or deployed anywhere, it's immutable: write a new timestamped migration instead. Check with `supabase migration list --local` and `git log master -- <file>`.
 - To rewrite an applied branch-local migration before PR: `supabase migration repair --status reverted --local <version>` → edit → `migration up --include-all`. Don't do this for anything already shipped.
 
