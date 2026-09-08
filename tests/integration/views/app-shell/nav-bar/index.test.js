@@ -3,6 +3,7 @@ import { shallowMount } from '@vue/test-utils'
 import { page } from 'vite-plus/test/browser/context'
 import NavBar from '@/views/app-shell/nav-bar/index.vue'
 import UiIcon from '@/components/ui-kit/icon.vue'
+import '@/styles/main.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,34 @@ describe('NavBar — logo lockup responsive classes', () => {
 
     expect(lockup.exists()).toBe(true)
     expect(lockup.classes()).toContain('min-h-9')
+  })
+})
+
+describe('NavBar — logo lockup visibility (feat/mobile-header-collapse)', () => {
+  // getComputedStyle only resolves a real value once the element is connected
+  // to the document — the other describes in this file never need that, so
+  // this stays a local helper rather than changing mountNavBar for everyone.
+  function mountNavBarAttached() {
+    wrapper = shallowMount(NavBar, { attachTo: document.body })
+    return wrapper
+  }
+
+  test('the logo lockup is not rendered below sm', async () => {
+    await page.viewport(375, 812)
+    mountNavBarAttached()
+
+    const lockup = wrapper.find('[data-testid="nav-bar__logo-lockup"]')
+
+    expect(getComputedStyle(lockup.element).display).toBe('none')
+  })
+
+  test('the logo lockup renders from sm and up', async () => {
+    await page.viewport(1280, 900)
+    mountNavBarAttached()
+
+    const lockup = wrapper.find('[data-testid="nav-bar__logo-lockup"]')
+
+    expect(getComputedStyle(lockup.element).display).not.toBe('none')
   })
 })
 

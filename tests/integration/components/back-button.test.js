@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from 'vite-plus/test'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 import { mount, shallowMount } from '@vue/test-utils'
 import { defineComponent, h, useAttrs } from 'vue'
 import UiButton from '@/components/ui-kit/button.vue'
@@ -10,12 +10,30 @@ vi.mock('@/sfx/bus', () => ({
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────────
 
-const { mockCurrentRoute, mockGo, mockPush, mockHistoryState } = vi.hoisted(() => ({
-  mockCurrentRoute: { value: { name: 'dashboard' } },
-  mockGo: vi.fn(),
-  mockPush: vi.fn(),
-  mockHistoryState: { back: '/dashboard' }
-}))
+// mockIsMobile is shaped like a real Vue ref (`__v_isRef` + a `value`
+// accessor) rather than a plain `{ value }` object — back-button.vue's
+// template reads `is_mobile` unwrapped, which only happens for something
+// Vue's `isRef` recognizes. `vue` can't be imported inside `vi.hoisted`
+// (its callback runs before the module graph settles), so the shape is
+// built by hand instead of via `ref()`.
+const { mockCurrentRoute, mockGo, mockPush, mockHistoryState, mockIsMobile } = vi.hoisted(() => {
+  let is_mobile = false
+  return {
+    mockCurrentRoute: { value: { name: 'dashboard' } },
+    mockGo: vi.fn(),
+    mockPush: vi.fn(),
+    mockHistoryState: { back: '/dashboard' },
+    mockIsMobile: {
+      __v_isRef: true,
+      get value() {
+        return is_mobile
+      },
+      set value(next) {
+        is_mobile = next
+      }
+    }
+  }
+})
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({
@@ -27,7 +45,7 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('@/composables/ui/media-query', () => ({
-  useMatchMedia: () => ({ value: false })
+  useMatchMedia: () => mockIsMobile
 }))
 
 vi.mock('gsap', () => ({ gsap: { to: vi.fn(), fromTo: vi.fn() } }))
@@ -145,5 +163,52 @@ describe('back-button — resolved chrome', () => {
     const wrapper = mountReal('deck')
     const class_list = wrapper.find('[data-testid="ui-kit-button"]').classes()
     expect(class_list).toContain('[--btn-text-color:var(--color-accent)]!')
+  })
+})
+
+// ── Mobile vs desktop chrome (feat/mobile-header-collapse) ────────────────────
+// is_mobile flips both icon-only and size — asserted through the real UiButton
+// so the label's presence in btn-content (not just the prop) is what's checked.
+
+describe('back-button — mobile vs desktop', () => {
+  afterEach(() => {
+    mockIsMobile.value = false
+  })
+
+  test('on mobile, renders the "Back" label instead of going icon-only', () => {
+    mockIsMobile.value = true
+    const wrapper = mountReal('deck')
+
+    const button = wrapper.find('[data-testid="ui-kit-button"]')
+    const label = wrapper.find('[data-testid="ui-kit-button__label"]')
+
+    expect(button.classes()).not.toContain('ui-kit-btn--icon-only')
+    expect(label.exists()).toBe(true)
+    expect(label.text()).toBe('Back')
+  })
+
+  test('on mobile, sizes up to base', () => {
+    mockIsMobile.value = true
+    const wrapper = mountReal('deck')
+
+    expect(wrapper.find('[data-testid="ui-kit-button"]').classes()).toContain('ui-kit-btn--base')
+  })
+
+  test('on sm+, stays icon-only with no visible label in the content', () => {
+    mockIsMobile.value = false
+    const wrapper = mountReal('deck')
+
+    const button = wrapper.find('[data-testid="ui-kit-button"]')
+    const label = wrapper.find('[data-testid="ui-kit-button__label"]')
+
+    expect(button.classes()).toContain('ui-kit-btn--icon-only')
+    expect(label.exists()).toBe(false)
+  })
+
+  test('on sm+, sizes down to sm', () => {
+    mockIsMobile.value = false
+    const wrapper = mountReal('deck')
+
+    expect(wrapper.find('[data-testid="ui-kit-button"]').classes()).toContain('ui-kit-btn--sm')
   })
 })
