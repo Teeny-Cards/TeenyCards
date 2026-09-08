@@ -43,10 +43,6 @@ const TAP_SLOP = 10
 // ~500ms native long-press so it feels responsive without firing on a quick tap.
 const LONG_PRESS_MS = 400
 
-// How long follow stays off after the member scrolls by hand before it re-arms
-// itself, so a brief detour to re-read a line doesn't require a manual resume.
-const FOLLOW_RESUME_IDLE_MS = 5000
-
 // On mobile the term sheet rises over roughly the bottom half of the viewport, so a
 // word committed past this fraction of the screen risks being buried by it. Such a
 // word is eased up into view before the sheet covers it.
@@ -130,10 +126,6 @@ export const readerMatchesKey = Symbol('readerMatches') as InjectionKey<
  *   active word's row into the DOM when a seek/resume lands outside the
  *   currently rendered range.
  * @param rowIndexOfWord - resolves a word index to its virtualizer row index.
- * @param is_playing - whether the audio is playing; gates the idle auto-resume
- *   timer, which only makes sense while the active word is advancing. Paused,
- *   there's nothing to fall behind, so a manual scroll (e.g. to read a term
- *   popover) stays put instead of snapping back a few seconds later.
  * @example
  * const { onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onPointerCancel } =
  *   useReaderHighlights(() => active_word, commitSelection, () => popover_open, dismiss)
@@ -145,8 +137,7 @@ export function useReaderHighlights(
   onDismiss: () => void,
   matchRangeAt: (index: number) => WordRange | null = () => null,
   virtualizer: WordVirtualizer,
-  rowIndexOfWord: (word_index: number) => number,
-  is_playing: MaybeRefOrGetter<boolean> = false
+  rowIndexOfWord: (word_index: number) => number
 ) {
   const content = useTemplateRef<HTMLElement>('content')
 
@@ -213,7 +204,6 @@ export function useReaderHighlights(
   let suppress_gesture_click = false
 
   let follow_timer: ReturnType<typeof setTimeout> | null = null
-  let follow_resume_timer: ReturnType<typeof setTimeout> | null = null
   let resize_observer: ResizeObserver | null = null
 
   // The word element currently flagged as playing. The active-word cue is painted
@@ -248,7 +238,6 @@ export function useReaderHighlights(
     window.removeEventListener('wheel', disableFollow)
     cancelLongPress()
     if (follow_timer !== null) clearTimeout(follow_timer)
-    if (follow_resume_timer !== null) clearTimeout(follow_resume_timer)
   })
 
   // Once a long-press has armed range-select the finger is extending the range,
@@ -454,23 +443,10 @@ export function useReaderHighlights(
     }, 100)
   }
 
-  // Idle-resume only fires while playing — paused, the active word isn't
-  // advancing, so there's nothing to fall behind and auto-resuming would just
-  // yank the view out from under a member reading something (e.g. a term
-  // popover) at the scrolled-away position. A lapse while paused leaves no
-  // timer pending; the watcher below re-arms one if play starts before the
-  // member manually resumes or scrolls again.
-  function armFollowResumeTimer() {
-    if (follow_resume_timer !== null) clearTimeout(follow_resume_timer)
-    follow_resume_timer = setTimeout(() => {
-      follow_resume_timer = null
-      if (toValue(is_playing)) resumeFollow()
-    }, FOLLOW_RESUME_IDLE_MS)
-  }
-
   // The member started scrolling by hand — a wheel/trackpad on desktop or a touch
   // pan on mobile: let the follow go and kill the live tween so it stops fighting
-  // them.
+  // them. Follow stays off until the member taps the resume control — it never
+  // re-arms itself.
   function disableFollow() {
     if (following.value) {
       following.value = false
@@ -482,8 +458,6 @@ export function useReaderHighlights(
       clearTimeout(follow_timer)
       follow_timer = null
     }
-
-    armFollowResumeTimer()
   }
 
   // Point the resume control at the playing word: 'up' when its centre sits above
@@ -513,11 +487,6 @@ export function useReaderHighlights(
    * tween is wanted (and welcome) regardless of play state.
    */
   async function resumeFollow() {
-    if (follow_resume_timer !== null) {
-      clearTimeout(follow_resume_timer)
-      follow_resume_timer = null
-    }
-
     following.value = true
     const index = toValue(active_word)
     if (index < 0) return
@@ -840,13 +809,6 @@ export function useReaderHighlights(
         committed.value = null
         paintWords(null)
       }
-    }
-  )
-  // Resuming after the idle timer lapsed leaves follow off with nothing to re-arm it.
-  watch(
-    () => toValue(is_playing),
-    (playing) => {
-      if (playing && !following.value && follow_resume_timer === null) armFollowResumeTimer()
     }
   )
 
