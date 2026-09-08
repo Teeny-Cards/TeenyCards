@@ -23,7 +23,7 @@ const { translation = null } = defineProps<TranslationZoneProps>()
         v-if="translation"
         :key="translation"
         data-testid="translation-zone__text"
-        class="absolute inset-x-4 top-0 text-lg text-ink-muted leading-[1.5]"
+        class="absolute inset-x-4 top-1/2 -translate-y-1/2 text-lg text-ink-muted leading-[1.5]"
       >
         {{ translation }}
       </p>

@@ -368,15 +368,25 @@ onBeforeUnmount(() => {
 
       <mobile-dock breakpoint="xl">
         <template #above>
-          <transition :css="false" @enter="fadeEnter" @leave="fadeLeave">
-            <resume-follow-button
-              v-if="show_follow_button"
-              data-testid="lesson-view__resume-follow"
-              :direction="follow_direction"
-              class="pointer-events-auto"
-              @resume="resumeFollow"
-            />
-          </transition>
+          <div data-testid="lesson-view__above" class="flex w-full flex-col items-end gap-3">
+            <transition :css="false" @enter="fadeEnter" @leave="fadeLeave">
+              <resume-follow-button
+                v-if="show_follow_button"
+                data-testid="lesson-view__resume-follow"
+                :direction="follow_direction"
+                class="pointer-events-auto"
+                @resume="resumeFollow"
+              />
+            </transition>
+
+            <div
+              v-if="use_fixed_layout"
+              data-testid="lesson-view__translation-band"
+              class="w-full overflow-hidden rounded-6 bg-surface shadow-sm ring-1 ring-line"
+            >
+              <translation-zone :translation="pinned_translation" />
+            </div>
+          </div>
         </template>
 
         <crossfade-resize
@@ -422,8 +432,6 @@ onBeforeUnmount(() => {
             data-testid="lesson-view__dock-toolbar"
             class="px-(--dock-px) pt-(--dock-pt) pb-(--dock-pb)"
           >
-            <translation-zone v-if="use_fixed_layout" :translation="pinned_translation" />
-
             <audio-toolbar
               :player="player"
               :chapters="chapters"
