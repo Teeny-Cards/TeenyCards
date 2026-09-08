@@ -1,6 +1,11 @@
 import { describe, test, expect, vi, afterEach } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import TranscriptView from '@/views/audio-reader/transcript/index.vue'
+// Real row heights (text-4xl, leading-[2.5]) are needed so the mounted content
+// is taller than the viewport — required for centered_translation's
+// viewport-centre lookup to land inside the virtualized rows.
+import '@/styles/main.css'
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -356,6 +361,185 @@ describe('TranscriptView', () => {
       // word 0 is not the active word — paintActiveWord removes the attribute entirely
       // (rather than setting it to 'false'), so non-active words carry no data-playing attr
       expect(words[0].attributes('data-playing')).toBeUndefined()
+    })
+  })
+
+  describe('hide_inline_translation', () => {
+    function translatedSentences() {
+      return [
+        sentence(0, 'Hello world.', [word('Hello ', 0), word('world.', 1)], {
+          translation: 'Bonjour le monde.'
+        }),
+        sentence(1, 'How are you?', [word('How ', 2), word('are ', 3), word('you?', 4)], {
+          translation: 'Comment allez-vous?'
+        }),
+        sentence(2, 'Fine thanks.', [word('Fine ', 5), word('thanks.', 6)])
+      ]
+    }
+
+    test('forwards hide_inline_translation to each transcript-segment', () => {
+      const wrapper = mountView({
+        paragraphs: translatedSentences(),
+        hide_inline_translation: true
+      })
+      expect(wrapper.find('[data-testid="transcript-segment__translation"]').exists()).toBe(false)
+    })
+
+    test('leaves inline translations rendered when hide_inline_translation is false', () => {
+      const wrapper = mountView({
+        paragraphs: translatedSentences(),
+        hide_inline_translation: false
+      })
+      expect(
+        wrapper.findAll('[data-testid="transcript-segment__translation"]').length
+      ).toBeGreaterThan(0)
+    })
+
+    test('estimateRowSize drops the translation extra from the virtualized height when hidden', () => {
+      const shown = mountView({ paragraphs: translatedSentences(), hide_inline_translation: false })
+      const hidden = mountView({ paragraphs: translatedSentences(), hide_inline_translation: true })
+
+      const shownHeight = parseFloat(
+        shown.find('[data-testid="transcript-view__content"]').element.style.height
+      )
+      const hiddenHeight = parseFloat(
+        hidden.find('[data-testid="transcript-view__content"]').element.style.height
+      )
+
+      // Two of the three rows carry a translation; each drops 40px of estimated
+      // height once the inline gloss is hidden (TRANSLATION_EXTRA).
+      expect(shownHeight - hiddenHeight).toBe(80)
+    })
+  })
+
+  describe('active_translation', () => {
+    function translatedSentences() {
+      return [
+        sentence(0, 'Hello world.', [word('Hello ', 0), word('world.', 1)], {
+          translation: 'Bonjour le monde.'
+        }),
+        sentence(1, 'How are you?', [word('How ', 2), word('are ', 3), word('you?', 4)], {
+          translation: 'Comment allez-vous?'
+        }),
+        sentence(2, 'Fine thanks.', [word('Fine ', 5), word('thanks.', 6)])
+      ]
+    }
+
+    test('is null before the first word starts (active_word=-1)', () => {
+      const wrapper = mountView({ paragraphs: translatedSentences(), active_word: -1 })
+      expect(wrapper.vm.active_translation).toBeNull()
+    })
+
+    test('is the translation of the row holding the active word', () => {
+      const wrapper = mountView({ paragraphs: translatedSentences(), active_word: 3 })
+      expect(wrapper.vm.active_translation).toBe('Comment allez-vous?')
+    })
+
+    test('is null when the active row has no translation', () => {
+      const wrapper = mountView({ paragraphs: translatedSentences(), active_word: 5 })
+      expect(wrapper.vm.active_translation).toBeNull()
+    })
+  })
+
+  describe('centered_translation', () => {
+    // Enough rows, each with its own translation, that scrolling from the top
+    // to well past the estimated total height moves the viewport centre from
+    // the first row's translation onto a later one.
+    function manyTranslatedSentences() {
+      return Array.from({ length: 20 }, (_, i) =>
+        sentence(i, `Sentence ${i}.`, [word(`word${i} `, i)], { translation: `Translation ${i}` })
+      )
+    }
+
+    test('reflects the row at the viewport centre, and moves as the page scrolls', async () => {
+      const wrapper = mount(TranscriptView, {
+        attachTo: document.body,
+        props: { paragraphs: manyTranslatedSentences(), active_word: -1 }
+      })
+      await flushPromises()
+
+      const at_top = wrapper.vm.centered_translation
+      expect(at_top).not.toBeNull()
+
+      // Land the viewport centre well past the first row without overshooting
+      // the virtualized content's total height.
+      const total_height = parseFloat(
+        wrapper.find('[data-testid="transcript-view__content"]').element.style.height
+      )
+      vi.stubGlobal('scrollY', total_height - window.innerHeight / 2 - 10)
+      window.dispatchEvent(new Event('scroll'))
+      await nextTick()
+
+      expect(wrapper.vm.centered_translation).not.toBeNull()
+      expect(wrapper.vm.centered_translation).not.toBe(at_top)
+
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    })
+  })
+
+  describe('card-match painting', () => {
+    test('a matched word gets data-highlight and data-palette painted on', async () => {
+      const matches = new Map([[1, { lo: 1, hi: 1, palette: 'blue-500' }]])
+      const wrapper = mountView({ matches })
+      await flushPromises()
+
+      const words = wrapper.findAll('[data-testid="transcript-word"]')
+      expect(words[1].attributes('data-highlight')).toBe('true')
+      expect(words[1].attributes('data-palette')).toBe('blue-500')
+    })
+
+    test('a word outside any match carries neither attribute', async () => {
+      const matches = new Map([[1, { lo: 1, hi: 1, palette: 'blue-500' }]])
+      const wrapper = mountView({ matches })
+      await flushPromises()
+
+      const words = wrapper.findAll('[data-testid="transcript-word"]')
+      expect(words[0].attributes('data-highlight')).toBeUndefined()
+      expect(words[0].attributes('data-palette')).toBeUndefined()
+    })
+
+    test('a match with no palette leaves data-palette unset', async () => {
+      const matches = new Map([[1, { lo: 1, hi: 1 }]])
+      const wrapper = mountView({ matches })
+      await flushPromises()
+
+      const words = wrapper.findAll('[data-testid="transcript-word"]')
+      expect(words[1].attributes('data-highlight')).toBe('true')
+      expect(words[1].attributes('data-palette')).toBeUndefined()
+    })
+
+    test('strips leading and trailing punctuation from the underlined core', async () => {
+      const wrapper = mount(TranscriptView, {
+        props: {
+          paragraphs: [sentence(0, '"Hi", world.', [word('"Hi", ', 0), word('world.', 1)])],
+          active_word: -1,
+          matches: new Map([[0, { lo: 0, hi: 0, palette: 'blue-500' }]])
+        }
+      })
+      await flushPromises()
+
+      const word_el = wrapper.findAll('[data-testid="transcript-word"]')[0]
+      // The quote and trailing comma+space sit outside the underline; only "Hi"
+      // itself is wrapped in the underline span.
+      expect(word_el.text()).toBe('"Hi",')
+      expect(word_el.find('span.underline').text()).toBe('Hi')
+    })
+
+    test('re-painting on a new matches map clears a highlight no longer present', async () => {
+      const matches = new Map([[1, { lo: 1, hi: 1, palette: 'blue-500' }]])
+      const wrapper = mountView({ matches })
+      await flushPromises()
+      expect(
+        wrapper.findAll('[data-testid="transcript-word"]')[1].attributes('data-highlight')
+      ).toBe('true')
+
+      await wrapper.setProps({ matches: new Map() })
+      await flushPromises()
+
+      expect(
+        wrapper.findAll('[data-testid="transcript-word"]')[1].attributes('data-highlight')
+      ).toBeUndefined()
     })
   })
 })

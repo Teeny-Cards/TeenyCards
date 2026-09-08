@@ -455,4 +455,45 @@ describe('AudioToolbar', () => {
     expect(player.setPlaybackRate).toHaveBeenCalledWith(1.5)
     expect(typeof player.setPlaybackRate.mock.calls[0][0]).toBe('number')
   })
+
+  // ── showSpeed: speed dropdown vs. display-settings trigger ─────────────────
+
+  test('expanded mode shows the speed dropdown by default (showSpeed unset)', () => {
+    const wrapper = mountToolbar()
+
+    expect(wrapper.find('[data-testid="audio-toolbar__speed-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="audio-toolbar__display-settings"]').exists()).toBe(false)
+  })
+
+  test('expanded mode swaps the speed dropdown for the display-settings trigger when showSpeed is false', () => {
+    const wrapper = mountToolbar({ showSpeed: false })
+
+    expect(wrapper.find('[data-testid="audio-toolbar__speed-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="audio-toolbar__display-settings"]').exists()).toBe(true)
+  })
+
+  test('mini mode swaps the speed dropdown for the display-settings trigger when showSpeed is false', () => {
+    localRefStore.next = 'mini'
+    const wrapper = mountToolbar({ showSpeed: false })
+
+    expect(wrapper.find('[data-testid="audio-toolbar__speed-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="audio-toolbar__display-settings"]').exists()).toBe(true)
+  })
+
+  test('clicking the display-settings trigger emits open-settings', async () => {
+    const wrapper = mountToolbar({ showSpeed: false })
+
+    await wrapper.find('[data-testid="audio-toolbar__display-settings"]').trigger('click')
+
+    expect(wrapper.emitted('open-settings')).toHaveLength(1)
+  })
+
+  test('clicking the mini display-settings trigger emits open-settings', async () => {
+    localRefStore.next = 'mini'
+    const wrapper = mountToolbar({ showSpeed: false })
+
+    await wrapper.find('[data-testid="audio-toolbar__display-settings"]').trigger('click')
+
+    expect(wrapper.emitted('open-settings')).toHaveLength(1)
+  })
 })
