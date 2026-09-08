@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import type { SentenceWords } from '@/utils/transcript'
 
-const { group, index } = defineProps<{
+const {
+  group,
+  index,
+  hideInlineTranslation = false
+} = defineProps<{
   group: SentenceWords
   index: number
+  // True in the reader's Fixed layout, where the translation is lifted out of the
+  // scroll into the pinned band, so the inline gloss is dropped here.
+  hideInlineTranslation?: boolean
 }>()
 </script>
 
@@ -30,7 +37,7 @@ const { group, index } = defineProps<{
       ></span
     >
     <span
-      v-if="group.translation"
+      v-if="group.translation && !hideInlineTranslation"
       data-testid="transcript-segment__translation"
       class="block text-lg text-ink-muted leading-[1.5]"
       >{{ group.translation }}</span

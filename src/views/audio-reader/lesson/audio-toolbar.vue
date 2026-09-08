@@ -22,6 +22,10 @@ type AudioToolbarProps = {
   // instead of the collection's lessons (which route to a new page).
   lessonChapters?: TranscriptChapter[]
   currentLessonId: number
+  // False in the phone dock, where speed moves into the reader-settings panel and
+  // this slot instead opens that panel; true on the desktop sidebar, which keeps
+  // its own inline speed control.
+  showSpeed?: boolean
 }
 
 const SKIP_SECONDS = 10
@@ -36,11 +40,18 @@ const SPEED_OPTIONS: DropdownOption[] = [
   { label: '2x', value: 2 }
 ]
 
-const { player, chapters, lessonChapters = [], currentLessonId } = defineProps<AudioToolbarProps>()
+const {
+  player,
+  chapters,
+  lessonChapters = [],
+  currentLessonId,
+  showSpeed = true
+} = defineProps<AudioToolbarProps>()
 
 const emit = defineEmits<{
   (e: 'select-chapter', id: number): void
   (e: 'seek', start: number): void
+  (e: 'open-settings'): void
 }>()
 
 const { t } = useI18n()
@@ -217,6 +228,7 @@ function setMode(next: 'expanded' | 'mini') {
 
         <div data-testid="audio-toolbar__options-end" class="flex justify-end">
           <ui-dropdown-button
+            v-if="showSpeed"
             data-testid="audio-toolbar__speed-select"
             icon-left="stopwatch"
             variant="ghost"
@@ -229,6 +241,18 @@ function setMode(next: 'expanded' | 'mini') {
           >
             {{ current_speed_label }}
           </ui-dropdown-button>
+
+          <ui-button
+            v-else
+            neutral
+            data-testid="audio-toolbar__display-settings"
+            icon-left="page-setting"
+            variant="ghost"
+            icon-only
+            @press="emit('open-settings')"
+          >
+            {{ t('audio-reader.reader-settings.trigger') }}
+          </ui-button>
         </div>
       </div>
     </div>
@@ -286,6 +310,7 @@ function setMode(next: 'expanded' | 'mini') {
       </button>
 
       <ui-dropdown-button
+        v-if="showSpeed"
         data-testid="audio-toolbar__speed-select"
         icon-left="stopwatch"
         variant="ghost"
@@ -298,6 +323,18 @@ function setMode(next: 'expanded' | 'mini') {
       >
         {{ current_speed_label }}
       </ui-dropdown-button>
+
+      <ui-button
+        v-else
+        neutral
+        data-testid="audio-toolbar__display-settings"
+        icon-left="page-setting"
+        variant="ghost"
+        icon-only
+        @press="emit('open-settings')"
+      >
+        {{ t('audio-reader.reader-settings.trigger') }}
+      </ui-button>
     </div>
   </div>
 </template>

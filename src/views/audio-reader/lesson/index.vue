@@ -6,6 +6,7 @@ import { emitSfx } from '@/sfx/bus'
 import { useLessonsByCollectionQuery } from '@/api/lessons'
 import { useLessonReader } from '@/composables/audio-reader/lesson-reader'
 import { useReaderProgress } from '@/composables/audio-reader/reader-progress'
+import { useReaderPrefs } from '@/composables/audio-reader/reader-prefs'
 import { useCollectionEditModal } from '@/composables/audio-reader/collection-edit-modal'
 import { useAnimatedHeight } from '@/composables/ui/animated-height'
 import { useMatchMedia } from '@/composables/ui/media-query'
@@ -18,7 +19,9 @@ import MobileDock from '@/components/mobile-dock/mobile-dock.vue'
 import { useMobileDock } from '@/components/mobile-dock/use-mobile-dock'
 import AudioToolbar from '@/views/audio-reader/lesson/audio-toolbar.vue'
 import ChapterList from '@/views/audio-reader/lesson/chapter-list.vue'
+import ReaderSettings from '@/views/audio-reader/lesson/reader-settings.vue'
 import ResumeFollowButton from '@/views/audio-reader/lesson/resume-follow-button.vue'
+import TranslationZone from '@/views/audio-reader/lesson/translation-zone.vue'
 import TranscriptView from '@/views/audio-reader/transcript/index.vue'
 import TermCard from '@/views/audio-reader/term-popover/term-card.vue'
 
@@ -52,18 +55,27 @@ const { restored } = useReaderProgress(collection_id, lesson_id, player)
 
 const { data: lessons_data } = useLessonsByCollectionQuery(collection_id)
 
+const { display_mode, translation_source } = useReaderPrefs()
+
 const { el: dock_el, claimHeight, releaseHeight } = useMobileDock()
 const is_desktop = useMatchMedia('w>=xl')
+
+// The reader-settings panel replaces the toolbar in the dock, like the term card
+// does. Phone only — the desktop sidebar keeps its own controls.
+const show_settings_in_dock = ref(false)
 
 const footer_swap = useTemplateRef<{ $el: HTMLElement }>('footer_swap')
 const footer_swap_el = computed(() => footer_swap.value?.$el ?? null)
 const footer_term = useTemplateRef<HTMLElement>('footer_term')
+const footer_settings = useTemplateRef<HTMLElement>('footer_settings')
 const footer_toolbar = useTemplateRef<HTMLElement>('footer_toolbar')
 
 const transcript = useTemplateRef<{
   following: boolean
   follow_direction: 'up' | 'down'
   resumeFollow: () => void
+  active_translation: string | null
+  centered_translation: string | null
 }>('transcript')
 
 // Gap to leave between the selected word and the footer's top edge after a reveal.
@@ -104,6 +116,19 @@ const show_term_in_sidebar = computed(() => show_term.value && is_desktop.value)
 // xl+.
 const show_follow_button = computed(() => transcript.value?.following === false)
 const follow_direction = computed(() => transcript.value?.follow_direction ?? 'down')
+
+// The Fixed layout applies on phone only; desktop keeps its inline glosses and
+// ignores the display settings entirely.
+const use_fixed_layout = computed(() => !is_desktop.value && display_mode.value === 'fixed')
+
+// What the pinned band shows: the playing line's translation, or the line at the
+// viewport centre, per the member's "translation follows" choice. Only in Fixed.
+const pinned_translation = computed(() => {
+  if (!use_fixed_layout.value) return null
+  return translation_source.value === 'scroll'
+    ? (transcript.value?.centered_translation ?? null)
+    : (transcript.value?.active_translation ?? null)
+})
 
 // Veil the reader until the transcript is loaded and the chapter has been
 // positioned at its resume offset, so the resume seek lands behind the veil and
@@ -169,10 +194,23 @@ function onSwapEnd() {
   releaseHeight()
 }
 
+// The dock's display-settings trigger and the panel's Done control funnel through
+// these, so the cue plays once here rather than on each button.
+function openReaderSettings() {
+  emitSfx('ui.press')
+  show_settings_in_dock.value = true
+}
+
+function closeReaderSettings() {
+  emitSfx('ui.press')
+  show_settings_in_dock.value = false
+}
+
 // Track whichever pane is mounted: the term card swelling as its definition loads,
 // and the toolbar growing/shrinking between its mini and expanded modes. The
 // crossfade between the two panes owns the height while `swapping`.
 useAnimatedHeight(footer_swap_el, footer_term, () => !swapping, reclearSelection)
+useAnimatedHeight(footer_swap_el, footer_settings, () => !swapping)
 useAnimatedHeight(footer_swap_el, footer_toolbar, () => !swapping)
 
 watch(show_term_in_dock, (v) => {
@@ -322,6 +360,7 @@ onBeforeUnmount(() => {
           :matches="matches"
           :active_word="active_word"
           :popover_open="popover_open"
+          :hide_inline_translation="use_fixed_layout"
           @select="openTerm"
           @dismiss="dismissTerm"
         />
@@ -367,19 +406,33 @@ onBeforeUnmount(() => {
           </div>
 
           <div
+            v-else-if="show_settings_in_dock"
+            key="settings"
+            ref="footer_settings"
+            data-testid="lesson-view__dock-settings"
+            class="px-(--dock-px) pt-(--dock-pt) pb-(--dock-pb)"
+          >
+            <reader-settings :player="player" @close="closeReaderSettings" />
+          </div>
+
+          <div
             v-else
             key="toolbar"
             ref="footer_toolbar"
             data-testid="lesson-view__dock-toolbar"
             class="px-(--dock-px) pt-(--dock-pt) pb-(--dock-pb)"
           >
+            <translation-zone v-if="use_fixed_layout" :translation="pinned_translation" />
+
             <audio-toolbar
               :player="player"
               :chapters="chapters"
               :lesson-chapters="lesson_chapters"
               :current-lesson-id="lesson_id"
+              :show-speed="false"
               @select-chapter="goToChapter"
               @seek="seekToChapter"
+              @open-settings="openReaderSettings"
             />
           </div>
         </crossfade-resize>
