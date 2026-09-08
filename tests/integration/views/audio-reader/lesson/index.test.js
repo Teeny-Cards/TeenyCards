@@ -61,6 +61,15 @@ const {
 // `ref()` is available. The vi.mock factories below close over these variables.
 const selectionRef = ref(null)
 const popoverOpenRef = ref(false)
+const displayModeRef = ref('inline')
+const translationSourceRef = ref('playback')
+
+vi.mock('@/composables/audio-reader/reader-prefs', () => ({
+  useReaderPrefs: () => ({
+    display_mode: displayModeRef,
+    translation_source: translationSourceRef
+  })
+}))
 
 vi.mock('@/composables/audio-reader/lesson-reader', () => ({
   useLessonReader: () => ({
@@ -158,16 +167,20 @@ const UiButtonStub = defineComponent({
 const transcriptFollowing = ref(true)
 const transcriptFollowDirection = ref('down')
 const transcriptResumeMock = vi.fn()
+const transcriptActiveTranslation = ref(null)
+const transcriptCenteredTranslation = ref(null)
 
 const TranscriptViewStub = defineComponent({
   name: 'TranscriptView',
-  props: ['paragraphs', 'active_word', 'popover_open'],
+  props: ['paragraphs', 'active_word', 'popover_open', 'hide_inline_translation'],
   emits: ['select', 'dismiss'],
   setup(_props, { emit, expose }) {
     expose({
       following: transcriptFollowing,
       follow_direction: transcriptFollowDirection,
-      resumeFollow: transcriptResumeMock
+      resumeFollow: transcriptResumeMock,
+      active_translation: transcriptActiveTranslation,
+      centered_translation: transcriptCenteredTranslation
     })
     return () =>
       h('div', { 'data-testid': 'transcript-view-stub' }, [
@@ -275,6 +288,10 @@ beforeEach(() => {
   transcriptFollowing.value = true
   transcriptFollowDirection.value = 'down'
   transcriptResumeMock.mockClear()
+  transcriptActiveTranslation.value = null
+  transcriptCenteredTranslation.value = null
+  displayModeRef.value = 'inline'
+  translationSourceRef.value = 'playback'
   playerRef.seek.mockClear()
   playerRef.play.mockClear()
   useMobileDock().height_claims.value = 0
@@ -565,8 +582,8 @@ describe('LessonView', () => {
       vi.clearAllMocks()
       mountView()
 
-      // Wired once for the dock term pane and once for the dock toolbar pane
-      expect(useAnimatedHeight).toHaveBeenCalledTimes(2)
+      // Wired once each for the dock term, settings, and toolbar panes
+      expect(useAnimatedHeight).toHaveBeenCalledTimes(3)
     })
   })
 
@@ -680,6 +697,128 @@ describe('LessonView', () => {
 
       expect(wrapper.find('[data-testid="lesson-view"]').classes()).toContain(
         'min-h-[calc(100dvh-var(--nav-height)-var(--mobile-dock-height,0px))]'
+      )
+    })
+  })
+
+  describe('dock three-way swap precedence — term > settings > toolbar', () => {
+    // The desktop sidebar also renders its own <audio-toolbar> unconditionally
+    // (CSS-hidden below xl), so findComponent(AudioToolbar) can resolve to
+    // either instance — the dock one lives inside lesson-view__dock-toolbar.
+    function findDockToolbar(wrapper) {
+      return wrapper.findAllComponents(AudioToolbar).find((c) => c.props('showSpeed') === false)
+    }
+
+    test('shows the toolbar when neither a term nor settings is active', () => {
+      const wrapper = mountView()
+
+      expect(wrapper.find('[data-testid="lesson-view__dock-toolbar"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="lesson-view__dock-settings"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="lesson-view__dock-term"]').exists()).toBe(false)
+    })
+
+    test('opening reader-settings via the toolbar trigger shows the settings pane', async () => {
+      const wrapper = mountView()
+
+      findDockToolbar(wrapper).vm.$emit('open-settings')
+      await nextTick()
+
+      expect(wrapper.find('[data-testid="lesson-view__dock-settings"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="lesson-view__dock-toolbar"]').exists()).toBe(false)
+    })
+
+    test('reader-settings close event returns the dock to the toolbar', async () => {
+      const wrapper = mountView()
+      findDockToolbar(wrapper).vm.$emit('open-settings')
+      await nextTick()
+      expect(wrapper.find('[data-testid="lesson-view__dock-settings"]').exists()).toBe(true)
+
+      wrapper.findComponent({ name: 'ReaderSettings' }).vm.$emit('close')
+      await nextTick()
+
+      expect(wrapper.find('[data-testid="lesson-view__dock-settings"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="lesson-view__dock-toolbar"]').exists()).toBe(true)
+    })
+
+    test('a term selection takes precedence over an open settings pane', async () => {
+      const wrapper = mountView()
+      findDockToolbar(wrapper).vm.$emit('open-settings')
+      await nextTick()
+      expect(wrapper.find('[data-testid="lesson-view__dock-settings"]').exists()).toBe(true)
+
+      selectionRef.value = { term: 'hi', sentence: 'say hi', word_index: 1, rect: {} }
+      popoverOpenRef.value = true
+      await nextTick()
+
+      expect(wrapper.find('[data-testid="lesson-view__dock-term"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="lesson-view__dock-settings"]').exists()).toBe(false)
+    })
+  })
+
+  describe('use_fixed_layout desktop gating', () => {
+    test('phone + fixed display_mode hides the inline translation and shows the pinned band', () => {
+      isDesktopRef.value = false
+      displayModeRef.value = 'fixed'
+      const wrapper = mountView()
+
+      expect(
+        wrapper.findComponent({ name: 'TranscriptView' }).props('hide_inline_translation')
+      ).toBe(true)
+      expect(wrapper.findComponent({ name: 'TranslationZone' }).exists()).toBe(true)
+      expect(
+        wrapper.find('[data-testid="lesson-view__translation-band"]').attributes('data-station')
+      ).toBe('float')
+    })
+
+    test('desktop ignores a fixed display_mode — inline translation stays, no pinned band', () => {
+      isDesktopRef.value = true
+      displayModeRef.value = 'fixed'
+      const wrapper = mountView()
+
+      expect(
+        wrapper.findComponent({ name: 'TranscriptView' }).props('hide_inline_translation')
+      ).toBe(false)
+      expect(wrapper.findComponent({ name: 'TranslationZone' }).exists()).toBe(false)
+    })
+
+    test('phone + inline display_mode keeps the inline translation and no pinned band', () => {
+      isDesktopRef.value = false
+      displayModeRef.value = 'inline'
+      const wrapper = mountView()
+
+      expect(
+        wrapper.findComponent({ name: 'TranscriptView' }).props('hide_inline_translation')
+      ).toBe(false)
+      expect(wrapper.findComponent({ name: 'TranslationZone' }).exists()).toBe(false)
+    })
+  })
+
+  describe('pinned translation source', () => {
+    test('follows playback (active_translation) by default', async () => {
+      isDesktopRef.value = false
+      displayModeRef.value = 'fixed'
+      translationSourceRef.value = 'playback'
+      transcriptActiveTranslation.value = 'From playback'
+      transcriptCenteredTranslation.value = 'From scroll'
+      const wrapper = mountView()
+      await nextTick()
+
+      expect(wrapper.findComponent({ name: 'TranslationZone' }).props('translation')).toBe(
+        'From playback'
+      )
+    })
+
+    test('follows scroll position (centered_translation) when preferred', async () => {
+      isDesktopRef.value = false
+      displayModeRef.value = 'fixed'
+      translationSourceRef.value = 'scroll'
+      transcriptActiveTranslation.value = 'From playback'
+      transcriptCenteredTranslation.value = 'From scroll'
+      const wrapper = mountView()
+      await nextTick()
+
+      expect(wrapper.findComponent({ name: 'TranslationZone' }).props('translation')).toBe(
+        'From scroll'
       )
     })
   })

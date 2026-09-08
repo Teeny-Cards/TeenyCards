@@ -64,7 +64,7 @@
   --color-raised: var(--color-brown-100);
   --color-raised-tint: var(--color-brown-50);
   --color-raised-shade: var(--color-brown-300);
-  --color-line: var(--color-brown-400);
+  --color-line: var(--color-brown-100);
   --color-ink: var(--color-brown-700);
   --color-ink-muted: var(--color-brown-500);
   --color-skeleton: var(--color-brown-300);
@@ -78,7 +78,7 @@
   --color-raised: var(--color-stone-800);
   --color-raised-tint: var(--color-grey-900);
   --color-raised-shade: var(--color-stone-700);
-  --color-line: var(--color-black);
+  --color-line: var(--color-grey-900);
   --color-ink: var(--color-brown-100);
   --color-ink-muted: var(--color-brown-500);
   --color-skeleton: var(--color-grey-900);
@@ -120,7 +120,7 @@
   --color-raised: var(--color-brown-300);
   --color-raised-tint: var(--color-brown-200);
   --color-raised-shade: var(--color-brown-400);
-  --color-line: var(--color-brown-300);
+  --color-line: var(--color-brown-100);
   --color-ink: var(--color-brown-700);
   --color-ink-muted: var(--color-brown-500);
   --color-skeleton: var(--color-brown-200);
@@ -134,7 +134,7 @@
   --color-raised: var(--color-stone-800);
   --color-raised-tint: var(--color-stone-850);
   --color-raised-shade: var(--color-stone-700);
-  --color-line: var(--color-stone-800);
+  --color-line: var(--color-grey-900);
   --color-ink: var(--color-brown-300);
   --color-ink-muted: var(--color-brown-500);
   --color-skeleton: var(--color-stone-900);

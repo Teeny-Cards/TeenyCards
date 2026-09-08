@@ -14,6 +14,9 @@ type TranscriptViewProps = {
   matches?: Map<number, CardMatch>
   active_word: number
   popover_open?: boolean
+  // True in the reader's Fixed layout: per-sentence glosses are dropped from the
+  // scroll (and their row-height estimate) since the pinned band shows them.
+  hide_inline_translation?: boolean
 }
 
 type TranscriptRow = { paragraph: SentenceWords; chapter_title?: string }
@@ -23,7 +26,8 @@ const {
   chapters = [],
   matches = new Map(),
   active_word,
-  popover_open = false
+  popover_open = false,
+  hide_inline_translation = false
 } = defineProps<TranscriptViewProps>()
 
 const emit = defineEmits<{
@@ -46,6 +50,11 @@ const HEADING_EXTRA = 170
 const OVERSCAN = 5
 
 const scroll_margin = ref(0)
+
+// Document-space Y of the viewport's vertical centre, refreshed on scroll/resize.
+// Row `start` offsets are in the same space (the content sits at the page top),
+// so the row straddling this value is the one at the middle of the screen.
+const viewport_center = ref(0)
 
 // One row per paragraph; a row also carries its chapter's heading title when
 // it's the first paragraph of that chapter, so the heading's height is part of
@@ -86,6 +95,24 @@ function rowIndexOfWord(word_index: number): number {
   return word_row_index.value.get(word_index) ?? 0
 }
 
+// The translation of the line the audio is on — what the pinned band shows when
+// it follows playback. Null before the first word starts, so the band stays empty
+// rather than showing the opening line.
+const active_translation = computed(() => {
+  if (active_word < 0) return null
+  return rows.value[rowIndexOfWord(active_word)]?.paragraph.translation ?? null
+})
+
+// The translation of the line at the vertical centre of the viewport — what the
+// pinned band shows when it follows scroll position.
+const centered_translation = computed(() => {
+  const center = viewport_center.value
+  const item = virtualizer.value
+    .getVirtualItems()
+    .find((row) => center >= row.start && center < row.start + row.size)
+  return item ? (rows.value[item.index]?.paragraph.translation ?? null) : null
+})
+
 const {
   content,
   hover_lines,
@@ -111,22 +138,34 @@ const {
 )
 
 // The follow state + resume action surface to the lesson view, which renders the
-// "jump to current line" control in the mobile dock above the transcript.
-defineExpose({ following, follow_direction, resumeFollow })
+// "jump to current line" control in the mobile dock above the transcript; the
+// translations feed the Fixed layout's pinned band, one per "translation follows".
+defineExpose({
+  following,
+  follow_direction,
+  resumeFollow,
+  active_translation,
+  centered_translation
+})
 
 let resize_observer: ResizeObserver | undefined
 
 onMounted(() => {
   measureScrollMargin()
-  resize_observer = new ResizeObserver(measureScrollMargin)
+  updateViewportCenter()
+  resize_observer = new ResizeObserver(onLayoutChange)
   resize_observer.observe(document.body)
+  window.addEventListener('scroll', updateViewportCenter, { passive: true })
 })
 
-onBeforeUnmount(() => resize_observer?.disconnect())
+onBeforeUnmount(() => {
+  resize_observer?.disconnect()
+  window.removeEventListener('scroll', updateViewportCenter)
+})
 
 function estimateRowSize(row: TranscriptRow): number {
   let size = BASE_ROW_HEIGHT
-  if (row.paragraph.translation) size += TRANSLATION_EXTRA
+  if (row.paragraph.translation && !hide_inline_translation) size += TRANSLATION_EXTRA
   if (row.chapter_title) size += HEADING_EXTRA
   return size
 }
@@ -136,6 +175,15 @@ function estimateRowSize(row: TranscriptRow): number {
 function measureScrollMargin() {
   if (!content.value) return
   scroll_margin.value = content.value.getBoundingClientRect().top + window.scrollY
+}
+
+function updateViewportCenter() {
+  viewport_center.value = window.scrollY + window.innerHeight / 2
+}
+
+function onLayoutChange() {
+  measureScrollMargin()
+  updateViewportCenter()
 }
 
 // Paint card-match highlights onto word elements imperatively rather than via
@@ -290,6 +338,7 @@ watch(
         <transcript-segment
           :group="rows[vrow.index].paragraph"
           :index="rows[vrow.index].paragraph.index"
+          :hide-inline-translation="hide_inline_translation"
         />
       </div>
     </div>

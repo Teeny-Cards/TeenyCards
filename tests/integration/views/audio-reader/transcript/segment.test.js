@@ -71,5 +71,21 @@ describe('TranscriptSegment', () => {
       const wrapper = mountSegment()
       expect(wrapper.find('[data-testid="transcript-segment__translation"]').exists()).toBe(false)
     })
+
+    test('omits translation element when hideInlineTranslation is true, even with a translation', () => {
+      const wrapper = mountSegment({
+        group: group(undefined, { translation: 'こんにちは世界' }),
+        hideInlineTranslation: true
+      })
+      expect(wrapper.find('[data-testid="transcript-segment__translation"]').exists()).toBe(false)
+    })
+
+    test('renders translation element when hideInlineTranslation is false and a translation is set', () => {
+      const wrapper = mountSegment({
+        group: group(undefined, { translation: 'こんにちは世界' }),
+        hideInlineTranslation: false
+      })
+      expect(wrapper.find('[data-testid="transcript-segment__translation"]').exists()).toBe(true)
+    })
   })
 })

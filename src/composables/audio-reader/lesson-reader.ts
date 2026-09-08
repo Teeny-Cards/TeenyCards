@@ -8,6 +8,7 @@ import { useMemberCardIndexQuery } from '@/api/cards'
 import { useMemberDecksQuery } from '@/api/decks'
 import { useAudioPlayer } from './audio-player'
 import { useTranscriptSync } from './transcript-sync'
+import { useReaderPrefs } from './reader-prefs'
 import { groupWordsBySentence } from '@/utils/transcript'
 import {
   buildCardTermMap,
@@ -101,6 +102,12 @@ export function useLessonReader(id: MaybeRefOrGetter<number>) {
   const audio_el = useTemplateRef<HTMLAudioElement>('audio')
   const player = useAudioPlayer(audio_el)
   const { active_index: active_word } = useTranscriptSync(words, player.current_time)
+
+  // Speed is a saved preference: seed the player from it, and write any later
+  // change (panel or desktop control) back, so it carries across lessons.
+  const { playback_rate: saved_playback_rate } = useReaderPrefs()
+  player.setPlaybackRate(saved_playback_rate.value)
+  watch(player.playback_rate, (rate) => (saved_playback_rate.value = rate))
 
   const selection = ref<TermSelection | null>(null)
   const popover_open = ref(false)

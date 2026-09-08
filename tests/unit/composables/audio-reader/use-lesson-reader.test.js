@@ -11,7 +11,8 @@ const {
   cardIndexQueryMock,
   decksQueryMock,
   noticeErrorMock,
-  mockEmitSfx
+  mockEmitSfx,
+  readerPrefsMock
 } = vi.hoisted(() => ({
   lessonQueryMock: vi.fn(),
   audioUrlQueryMock: vi.fn(),
@@ -20,7 +21,8 @@ const {
   cardIndexQueryMock: vi.fn(),
   decksQueryMock: vi.fn(),
   noticeErrorMock: vi.fn(),
-  mockEmitSfx: vi.fn()
+  mockEmitSfx: vi.fn(),
+  readerPrefsMock: vi.fn()
 }))
 
 vi.mock('@/sfx/bus', () => ({ emitSfx: mockEmitSfx, emitHoverSfx: vi.fn() }))
@@ -39,6 +41,7 @@ vi.mock('@/composables/audio-reader/audio-player', () => ({ useAudioPlayer: audi
 vi.mock('@/composables/audio-reader/transcript-sync', () => ({
   useTranscriptSync: transcriptSyncMock
 }))
+vi.mock('@/composables/audio-reader/reader-prefs', () => ({ useReaderPrefs: readerPrefsMock }))
 
 // The transcript utils are pure and left real, so paragraph shaping is tested end to end.
 import { useLessonReader } from '@/composables/audio-reader/lesson-reader'
@@ -90,6 +93,8 @@ describe('useLessonReader', () => {
     audioUrlQueryMock.mockReturnValue({ data: ref('https://cdn/1.mp3') })
     audioPlayerMock.mockReturnValue({
       current_time: ref(0),
+      playback_rate: ref(1),
+      setPlaybackRate: vi.fn(),
       play: vi.fn(),
       pause: vi.fn(),
       seek: vi.fn(),
@@ -98,6 +103,7 @@ describe('useLessonReader', () => {
     transcriptSyncMock.mockReturnValue({ active_index: ref(-1) })
     cardIndexQueryMock.mockReturnValue({ data: ref([]) })
     decksQueryMock.mockReturnValue({ data: ref([]) })
+    readerPrefsMock.mockReturnValue({ playback_rate: ref(1) })
     noticeErrorMock.mockReset()
     mockEmitSfx.mockReset()
   })
@@ -136,6 +142,47 @@ describe('useLessonReader', () => {
 
       expect(reader.audio_url.value).toBe('https://cdn/1.mp3')
       expect(reader.active_word.value).toBe(3)
+    })
+  })
+
+  describe('playback rate preference', () => {
+    test('seeds the player rate from the saved preference on mount', () => {
+      const setPlaybackRate = vi.fn()
+      audioPlayerMock.mockReturnValue({
+        current_time: ref(0),
+        playback_rate: ref(1.5),
+        setPlaybackRate,
+        play: vi.fn(),
+        pause: vi.fn(),
+        seek: vi.fn(),
+        playClip: vi.fn()
+      })
+      readerPrefsMock.mockReturnValue({ playback_rate: ref(1.5) })
+
+      ;[, app] = withReader()
+
+      expect(setPlaybackRate).toHaveBeenCalledWith(1.5)
+    })
+
+    test('writes a later rate change on the player back to the saved preference', async () => {
+      const player_rate = ref(1)
+      audioPlayerMock.mockReturnValue({
+        current_time: ref(0),
+        playback_rate: player_rate,
+        setPlaybackRate: vi.fn(),
+        play: vi.fn(),
+        pause: vi.fn(),
+        seek: vi.fn(),
+        playClip: vi.fn()
+      })
+      const saved_playback_rate = ref(1)
+      readerPrefsMock.mockReturnValue({ playback_rate: saved_playback_rate })
+
+      ;[, app] = withReader()
+      player_rate.value = 2
+      await nextTick()
+
+      expect(saved_playback_rate.value).toBe(2)
     })
   })
 
@@ -226,6 +273,8 @@ describe('useLessonReader', () => {
       const pauseMock = vi.fn()
       audioPlayerMock.mockReturnValue({
         current_time: ref(0),
+        playback_rate: ref(1),
+        setPlaybackRate: vi.fn(),
         play: vi.fn(),
         pause: pauseMock,
         seek: vi.fn(),
@@ -454,6 +503,8 @@ describe('useLessonReader', () => {
     function withPlayer() {
       const player = {
         current_time: ref(0),
+        playback_rate: ref(1),
+        setPlaybackRate: vi.fn(),
         play: vi.fn(),
         pause: vi.fn(),
         seek: vi.fn(),
