@@ -8,8 +8,10 @@ procs:
     shell: 'supabase status >/dev/null 2>&1 || supabase start'
     autostart: true
   # Serves Edge Functions with hot-reload. JWT verification is per-function via config.toml.
+  # --env-file is explicit: the CLI no longer auto-loads .env.local (the file
+  # bootstrap-env.sh caches Doppler secrets into), so serve must be pointed at it.
   functions:
-    shell: 'supabase functions serve'
+    shell: 'supabase functions serve --env-file supabase/functions/.env.local'
   # Vite dev server for the Vue SPA (via Vite+ toolchain wrapper).
   vite:
     shell: 'vp dev --host'

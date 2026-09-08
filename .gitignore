@@ -26,6 +26,10 @@ coverage
 .vitest-attachments/
 **/__screenshots__/
 
+# VitePress build artifacts (dist is caught by `dist` above; cache is not)
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
 # Editor directories and files
 .idea
 *.suo
