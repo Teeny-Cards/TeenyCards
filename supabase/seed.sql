@@ -42,6 +42,31 @@ update public.members set role = 'admin' where id = '00000000-0000-0000-0000-000
 update public.plans set stripe_price_id = 'price_1Tqwq7IuBoRqjURoOfra7y5M' where id = 'paid';
 
 -- -----------------------------------------------------------------------------
+-- Rewards catalogue. Metrics are the countable things a source reports under;
+-- milestones are retunable data (metric + threshold + paperclip payload). The
+-- name is an i18n key placeholder, never English copy. Inserted as postgres —
+-- both tables are catalogue-only (SELECT for authenticated, no client writes).
+-- -----------------------------------------------------------------------------
+insert into public.reward_metrics (key) values
+  ('study.cards_reviewed'),
+  ('study.correct_answers'),
+  ('study.sessions_completed')
+on conflict (key) do nothing;
+
+insert into public.reward_milestones (metric, threshold, rewards, name_key) values
+  ('study.cards_reviewed',    100,  '[{"kind":"paperclips","amount":50}]'::jsonb,   'rewards.milestone.cards-reviewed-100'),
+  ('study.cards_reviewed',    500,  '[{"kind":"paperclips","amount":150}]'::jsonb,  'rewards.milestone.cards-reviewed-500'),
+  ('study.cards_reviewed',    1000, '[{"kind":"paperclips","amount":300}]'::jsonb,  'rewards.milestone.cards-reviewed-1000'),
+  ('study.cards_reviewed',    5000, '[{"kind":"paperclips","amount":1000}]'::jsonb, 'rewards.milestone.cards-reviewed-5000'),
+  ('study.correct_answers',   50,   '[{"kind":"paperclips","amount":40}]'::jsonb,   'rewards.milestone.correct-answers-50'),
+  ('study.correct_answers',   250,  '[{"kind":"paperclips","amount":120}]'::jsonb,  'rewards.milestone.correct-answers-250'),
+  ('study.correct_answers',   1000, '[{"kind":"paperclips","amount":400}]'::jsonb,  'rewards.milestone.correct-answers-1000'),
+  ('study.sessions_completed', 5,   '[{"kind":"paperclips","amount":30}]'::jsonb,   'rewards.milestone.sessions-completed-5'),
+  ('study.sessions_completed', 25,  '[{"kind":"paperclips","amount":100}]'::jsonb,  'rewards.milestone.sessions-completed-25'),
+  ('study.sessions_completed', 100, '[{"kind":"paperclips","amount":400}]'::jsonb,  'rewards.milestone.sessions-completed-100')
+on conflict (metric, threshold) do nothing;
+
+-- -----------------------------------------------------------------------------
 -- 2. Impersonate Cheesy so member_id / rank triggers and RLS policies behave
 --    exactly as they would for a real authenticated request (same pattern as
 --    tests.set_claims() in supabase/tests/00000_helpers.sql).

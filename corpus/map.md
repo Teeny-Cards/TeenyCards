@@ -38,6 +38,10 @@ See [corpus-authoring](../.claude/rules/corpus-authoring.md) for how the corpus 
 
 - [[pacing]] — per-deck dials; follow a preset or pin a dial; a pin is presence, not difference ⚠️
 
+## rewards
+
+- [[rewards]] — a progress tally survives any reset of the history under it; a paid-out reward is resolved once and never re-reads the milestone that promised it ⚠️
+
 ## scheduling
 
 - [[scheduling]] — FSRS decides when each card returns; the math runs on the client, not the server ⚠️
